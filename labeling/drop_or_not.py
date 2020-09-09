@@ -1,7 +1,7 @@
 # Images in a directory are read and plotted consecutively.
 # You decide if the image should be retained or deleted
 
-import os, time
+import os, shutil
 from glob import glob
 import numpy as np
 import rasterio
@@ -9,9 +9,13 @@ import rasterio.plot as rp
 
 main_dir = "F:\\Masterarbeit\\DLR\\project\\1_cnn_truck_detection\\training_data\\images"
 
-def drop_or_not(main_dir):
-    files = [os.path.join(main_dir, f) for f in glob(main_dir+os.sep+"*.tif")]
-    files = files[3:10]
+
+def drop_or_not(d):
+    dir_out = os.path.join(d, "checked")
+    if not os.path.exists(dir_out):
+        os.mkdir(dir_out)
+    files = [os.path.join(d, f) for f in glob(d+os.sep+"*.tif")]
+    files = files[0:2]
     for i, f in enumerate(files):
         print("File %s/%s" %(i,len(files)))
         with rasterio.open(f, "r") as src:
@@ -21,16 +25,20 @@ def drop_or_not(main_dir):
         rp.show(rgb_stack)
         print("Drop or not? Press ENTER for dropping the image")
         in1 = input()
+        f_out = os.path.join(dir_out, os.path.basename(f).split(".")[0] + "_checked.tif")
         if in1 == "":
-            os.remove(f)
-            if not os.path.exists(f):
-                print("Deleted")
+            print("Dropping")
         else:
             print("Ok")
+            shutil.copyfile(f, f_out)
+        if os.path.exists(f_out):
+            os.remove(f)
+
 
 def normalize(array):
     array_min = array.min()
     return (array - array_min) / (array.max() - array_min)
+
 
 if __name__ == "__main__":
     drop_or_not(main_dir)

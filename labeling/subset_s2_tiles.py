@@ -49,6 +49,7 @@ def subset(d, dir_out, subset_size):
                                 for i, band in enumerate(list(subset)):
                                     target.write(band.astype(np.uint16), i+1)
 
+
 def can_have_trucks(blue, green, red):
     blue = blue.astype(np.float32)
     green = green.astype(np.float32)
@@ -57,6 +58,7 @@ def can_have_trucks(blue, green, red):
     br = ((blue - red) / (blue + red)) > 0.02
     bg_br = bg.astype(np.int) * br.astype(np.int)
     return np.count_nonzero(bg_br) > 0
+
 
 if __name__ == "__main__":
     for d in directories:

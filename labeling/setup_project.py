@@ -2,9 +2,11 @@ import os
 
 main_dir = os.path.join("F:\\Masterarbeit\\DLR\\project\\1_cnn_truck_detection")
 
+
 def create_dir(d):
     if not os.path.exists(d):
         os.mkdir(d)
+
 
 def setup(main_dir):
     main_tf = os.path.join(main_dir, "TensorFlow")
@@ -25,6 +27,7 @@ def setup(main_dir):
         create_dir(os.path.join(tf_training, d))
     for d in ["validate", "train"]:
         create_dir(os.path.join(tf_training, "images", d))
+
 
 if __name__ == "__main__":
     setup(main_dir)
