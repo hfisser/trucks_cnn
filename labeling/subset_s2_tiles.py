@@ -3,11 +3,12 @@ import numpy as np
 import rasterio
 
 main_dir = "F:\\Masterarbeit\\DLR\\project\\1_cnn_truck_detection\\training_data"
-dir_out = os.path.join(main_dir, "images")
 directories = [os.path.join(main_dir, x) for x in os.listdir(main_dir)]
 subset_size = 36
 
-def subset(d, dir_out, subset_size):
+
+def subset(d, sub_size):
+    dir_out = os.path.join(d, "images")
     file_out = os.path.join(dir_out, os.path.basename(d)+".jpg")
     if not os.path.exists(file_out):
         if not os.path.exists(dir_out):
@@ -26,18 +27,18 @@ def subset(d, dir_out, subset_size):
                     kwargs = r.profile
             kwargs.update(count=4,
                           driver="GTiff",
-                          height=subset_size,
-                          width=subset_size,
+                          height=sub_size,
+                          width=sub_size,
                           dtype="uint16")
             # create subsets of the data
-            dim = range(subset_size)
+            dim = range(sub_size)
             for y in dim:
                 for x in dim:
                     subset = []
                     for arr in data:
-                        y_up = (y + 1) * subset_size
-                        x_up = (x + 1) * subset_size
-                        subset.append(arr[y * subset_size : y_up, x * subset_size : x_up])
+                        y_up = (y + 1) * sub_size
+                        x_up = (x + 1) * sub_size
+                        subset.append(arr[y * sub_size: y_up, x * sub_size: x_up])
                     subset = np.array(subset)
                     fname = "_".join([os.path.basename(d), "y" + str(y), "x" + str(x)]) + ".tif"
                     file_out = os.path.join(dir_out, fname)
@@ -62,4 +63,4 @@ def can_have_trucks(blue, green, red):
 
 if __name__ == "__main__":
     for d in directories:
-        subset(d, dir_out, subset_size)
+        subset(d, subset_size)
