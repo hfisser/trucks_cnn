@@ -8,7 +8,7 @@ subset_size = 36
 
 
 def subset(d, sub_size):
-    dir_out = os.path.join(d, "images", "raw")
+    dir_out = os.path.join(os.path.dirname(os.path.dirname(d)), "images", "raw")
     if not os.path.exists(dir_out):
         os.mkdir(dir_out)
     d1 = os.path.join(d, os.listdir(d)[0], "GRANULE")
@@ -61,4 +61,5 @@ def can_have_trucks(blue, green, red):
 
 if __name__ == "__main__":
     for directory in directories:
+        print("Processing: " + os.path.basename(directory))
         subset(directory, subset_size)
