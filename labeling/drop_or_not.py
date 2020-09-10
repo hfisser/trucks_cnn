@@ -15,7 +15,7 @@ def drop_or_not(d):
     dir_out = os.path.join(d, "checked")
     if not os.path.exists(dir_out):
         os.mkdir(dir_out)
-    files = [os.path.join(d, f) for f in glob(d+os.sep+"*.tif")]
+    files = [os.path.join(d, f) for f in glob(os.path.join(d, "raw", "*.tif"))]
     for i, f in enumerate(files):
         f_out = os.path.join(dir_out, os.path.basename(f).split(".")[0] + "_checked.tif")
         if os.path.exists(f_out):
