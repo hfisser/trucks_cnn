@@ -34,20 +34,20 @@ def subset(d, sub_size):
             dim = range(sub_size)
             for y in dim:
                 for x in dim:
-                    subset = []
+                    sub = []
                     for arr in data:
                         y_up = (y + 1) * sub_size
                         x_up = (x + 1) * sub_size
-                        subset.append(arr[y * sub_size: y_up, x * sub_size: x_up])
-                    subset = np.array(subset)
+                        sub.append(arr[y * sub_size: y_up, x * sub_size: x_up])
+                    sub = np.array(sub)
                     fname = "_".join([os.path.basename(d), "y" + str(y), "x" + str(x)]) + ".tif"
                     file_out = os.path.join(dir_out, fname)
                     if not os.path.exists(file_out):
                         # check if there is potential for trucks in the subset
-                        proceed = can_have_trucks(subset[0], subset[1], subset[2])
+                        proceed = can_have_trucks(sub[0], sub[1], sub[2])
                         if proceed:
                             with rasterio.open(file_out, "w", **kwargs) as target:
-                                for i, band in enumerate(list(subset)):
+                                for i, band in enumerate(list(sub)):
                                     target.write(band.astype(np.uint16), i+1)
 
 
@@ -62,5 +62,5 @@ def can_have_trucks(blue, green, red):
 
 
 if __name__ == "__main__":
-    for d in directories:
-        subset(d, subset_size)
+    for directory in directories:
+        subset(directory, subset_size)
