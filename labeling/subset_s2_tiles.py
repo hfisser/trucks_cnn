@@ -2,7 +2,7 @@ import os
 import numpy as np
 import rasterio
 
-main_dir = "F:\\Masterarbeit\\DLR\\project\\1_cnn_truck_detection\\training_data"
+main_dir = "F:\\Masterarbeit\\DLR\\project\\1_cnn_truck_detection\\training_data\\data"
 directories = [os.path.join(main_dir, x) for x in os.listdir(main_dir)]
 subset_size = 36
 
