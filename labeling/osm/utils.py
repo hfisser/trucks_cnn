@@ -5,18 +5,17 @@ import numpy as np
 
 from labeling.array.utils import rasterize
 from labeling.package_utils import pip_install
-
 pip_install("OSMPythonTools")
 from OSMPythonTools.overpass import overpassQueryBuilder, Overpass
 
 
-def buffer_bbox(bbox):
+def buffer_bbox(bbox_osm):
     offset = 0.05  # add a buffer to bbox in order to be sure cube is entirely covered
-    bbox[0] -= offset  # min lat
-    bbox[1] -= offset  # min lon
-    bbox[2] += offset  # max lat
-    bbox[3] += offset  # max lon
-    return bbox
+    bbox_osm[0] -= offset  # min lat
+    bbox_osm[1] -= offset  # min lon
+    bbox_osm[2] += offset  # max lat
+    bbox_osm[3] += offset  # max lon
+    return bbox_osm
 
 
 # bbox List of four coords
@@ -59,14 +58,15 @@ def get_osm(bbox,
 # osm_values List of String OSM values
 # roads_buffer Float buffer width
 # dir_write
-def get_roads(bbox, osm_values, dir_write, filename):
-    roads_buffer = 0.00022
-    osm_key = "highway"
+def get_roads(bbox, osm_values, dir_write, filename, crs):
+    roads_buffer = 0.00036
+    roads_buffer = 30 # meters
     fwrite = os.path.join(dir_write, filename + ".gpkg")
+    file_tmp = os.path.join(dir_write, "tmp.gpkg")
     if not os.path.exists(fwrite):
         roads = []
-        has_error = []
         offset = 0.00002
+        offset = 3 # meters
         buffer_dist = "buffer_distance"
         # buffer according to road type
         m, t, p, s, ter = "motorway", "trunk", "primary", "secondary", "tertiary"
@@ -75,14 +75,17 @@ def get_roads(bbox, osm_values, dir_write, filename):
         osm_values_int = {m: 1, t: 2, p: 3, s: 4, ter: 5}
         for osm_value in osm_values:
             roads_osm = get_osm(bbox=bbox, osm_value=osm_value)
+            roads_osm.to_file(file_tmp, driver="GPKG")
+            roads_osm = gpd.read_file(file_tmp)
+            roads_osm = roads_osm.to_crs(crs)
             roads_osm[buffer_dist] = [buffers[osm_value]] * len(roads_osm)
             roads_osm["osm_value_int"] = osm_values_int[osm_value]
             roads.append(roads_osm)
-        if len(roads) > len(has_error):
-            roads_merge = gpd.GeoDataFrame(pd.concat(roads, ignore_index=True), crs=roads[0].crs)
-            buffered = roads_merge.buffer(distance=roads_merge[buffer_dist])
-            roads_merge.geometry = buffered
-            roads_merge.to_file(fwrite, driver="GPKG")
+        roads_merge = gpd.GeoDataFrame(pd.concat(roads, ignore_index=True), crs=roads[0].crs)
+        buffered = roads_merge.buffer(distance=roads_merge[buffer_dist])
+        roads_merge.geometry = buffered
+        roads_merge.to_file(fwrite, driver="GPKG")
+        os.remove(file_tmp)
     return fwrite
 
 
