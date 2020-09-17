@@ -50,3 +50,10 @@ def rasterize(polygons, lat, lon, fill=np.nan):
                                 fill=fill, transform=transform,
                                 dtype=float)
     return xr.DataArray(raster, coords={"lat": lat, "lon": lon}, dims=("lat", "lon"))
+
+
+def rescale(arr, min_val, max_val):
+    arr += -(np.min(arr))
+    arr /= np.max(arr) / (max_val - min_val)
+    arr += min_val
+    return arr
