@@ -1,21 +1,21 @@
 import os
 import rasterio
-import osr
 import utm
 import numpy as np
 import xarray as xr
 import geopandas as gpd
 from shapely import geometry
 from rasterio.transform import Affine
-from rasterio.warp import Resampling, reproject, calculate_default_transform
 from labeling.osm.utils import get_roads, rasterize_osm
+from labeling.array.utils import rescale
 
 main_dir = "F:\\Masterarbeit\\DLR\\project\\1_cnn_truck_detection\\training_data\\data"
 directories = [os.path.join(main_dir, x) for x in os.listdir(main_dir)]
-n_subs = 4
+number_subsets = 4
+roads_buffer = 40
 
 
-def subset(d, n_subs):
+def subset(d, n_subs, osm_buffer):
     tgt_crs = "EPSG:4326"
     home = os.path.dirname(os.path.dirname(d))
     dir_out = os.path.join(home, "images", "raw")
@@ -33,27 +33,12 @@ def subset(d, n_subs):
         src = rasterio.open(os.path.join(d2, files[0]))
         kwargs = src.meta.copy()
         src_crs = src.crs
-        #src_crs, src_width, src_height, src_transform = src.crs, src.width, src.height, src.transform
-        #transform, width, height = calculate_default_transform(src.crs, tgt_crs,
-         #                                                      src_width, src_height, *src.bounds)
-        #kwargs.update({"crs": tgt_crs, "transform": transform, "width": width, "height": height,
-         #              "count": len(bands), "driver": "GTiff"})
         kwargs.update({"count": len(bands), "driver": "GTiff"})
         with rasterio.open(file_stack, "w", **kwargs) as tgt:
             for i, b in enumerate(bands):
                 fname = files[np.where(band_names == b)[0][0]]
                 with rasterio.open(os.path.join(d2, fname)) as src:
                     tgt.write(src.read(1), i+1)
-              #      reproject(
-               #         source=rasterio.band(src, 1),
-                #        destination=rasterio.band(tgt, i+1),
-                 #       src_transform=src.transform,
-                  #      src_crs=src.crs,
-                   #     dst_transform=transform,
-                    #    dst_crs=tgt.crs,
-                     #   resampling=Resampling.bilinear)
-            #a, b = tgt.transform * [0, 0], tgt.transform * [tgt.height, tgt.width]
-            #tgt_corners = np.array([a[0], b[1], b[0], a[1]]).flatten()
         src_utm = src.crs.to_wkt().split("/ UTM zone ")[1].split(",")[0][0:-1]
         a, b = src.transform * [0,0], src.transform * [src.height, src.width]
         src_corners = np.array([a[0], b[1], b[0], a[1]]).flatten()
@@ -69,22 +54,22 @@ def subset(d, n_subs):
                                crs=str("EPSG:4326"))
         gdf.to_file(gpkg_out, driver="GPKG")
         # get OSM data and mask data to roads
-        osm_file = get_roads(bbox_epsg4326, ["motorway", "trunk", "primary"], dir_osm, fname_pure + "osm_roads",
-                             str(src_crs))
+        osm_file = get_roads(bbox_epsg4326, ["motorway", "trunk", "primary"], osm_buffer,
+                             dir_osm, fname_pure + "osm_roads", str(src_crs))
         bbox_epsg4326 = src_corners
         osm_vec = gpd.read_file(osm_file)
         n = n_subs / 2
         stack = rasterio.open(file_stack, "r")
         n_bands = len(bands)
         h, w = stack.height, stack.width
-        data = np.zeros((n_bands, h, w))
-        dim = range(int(n))
+        data = np.zeros((n_bands, h, w), dtype=np.float32)
         for i in range(n_bands):
             data[i] = stack.read(i+1)
         tgt_pixels_y = int(h/n)
         tgt_pixels_x = int(w/n)
-        src_lat = get_lat(bbox_epsg4326, h)
-        src_lon = get_lon(bbox_epsg4326, w)
+        src_lat = get_lat(bbox_epsg4326, h, (bbox_epsg4326[3]-bbox_epsg4326[1]) / h)
+        src_lon = get_lon(bbox_epsg4326, w, (bbox_epsg4326[2]-bbox_epsg4326[0]) / w)
+        dim = range(int(n))
         for y in dim:
             for x in dim:
                 file_out = os.path.join(dir_out, "_".join([fname_pure, "y"+str(y), "x"+str(x)])+".tif")
@@ -99,12 +84,14 @@ def subset(d, n_subs):
                 osm_raster[osm_raster != 0] = 1
                 osm_raster[osm_raster == 0] = np.nan
                 t = stack.transform
-                transform = Affine(t[0], t[1], x, t[3], t[4], y)
-                kwargs.update({"crs": tgt_crs, "height": tgt_pixels_y, "width": tgt_pixels_x, "transform": transform})
+                transform = Affine(t[0], t[1], tgt_lon[x], t[3], t[4], tgt_lon[y])
+                kwargs.update({"crs": tgt_crs, "transform": transform,
+                               "height": tgt_pixels_y, "width": tgt_pixels_x,
+                               "dtype": np.float32})
                 with rasterio.open(file_out, "w", **kwargs) as tgt:
                     for i in range(n_bands):
-                        tgt.write((data[i, y1:y2, x1:x2] * osm_raster).astype(np.uint16), i+1)
-                print("Done")
+                        data_band = rescale(data[i, y1:y2, x1:x2].astype(np.float32), 0., 1.)
+                        tgt.write((data_band * osm_raster).astype(np.float32), i+1)
 
 
 def get_lat(bbox, h, step=None):
@@ -148,4 +135,4 @@ def can_have_trucks(blue, green, red):
 if __name__ == "__main__":
     for directory in directories:
         print("Processing: " + os.path.basename(directory))
-        subset(directory, n_subs)
+        subset(directory, number_subsets, roads_buffer)
