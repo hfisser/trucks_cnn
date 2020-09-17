@@ -58,9 +58,7 @@ def get_osm(bbox,
 # osm_values List of String OSM values
 # roads_buffer Float buffer width
 # dir_write
-def get_roads(bbox, osm_values, dir_write, filename, crs):
-    roads_buffer = 0.00036
-    roads_buffer = 30 # meters
+def get_roads(bbox, osm_values, buffer_meters, dir_write, filename, crs):
     fwrite = os.path.join(dir_write, filename + ".gpkg")
     file_tmp = os.path.join(dir_write, "tmp.gpkg")
     if not os.path.exists(fwrite):
@@ -70,8 +68,8 @@ def get_roads(bbox, osm_values, dir_write, filename, crs):
         buffer_dist = "buffer_distance"
         # buffer according to road type
         m, t, p, s, ter = "motorway", "trunk", "primary", "secondary", "tertiary"
-        buffers = {m: roads_buffer, t: roads_buffer - offset, p: roads_buffer - (2 * offset),
-                   s: roads_buffer - (3 * offset), ter: roads_buffer - (4 * offset)}
+        buffers = {m: buffer_meters, t: buffer_meters - offset, p: buffer_meters - (2 * offset),
+                   s: buffer_meters - (3 * offset), ter: buffer_meters - (4 * offset)}
         osm_values_int = {m: 1, t: 2, p: 3, s: 4, ter: 5}
         for osm_value in osm_values:
             roads_osm = get_osm(bbox=bbox, osm_value=osm_value)
