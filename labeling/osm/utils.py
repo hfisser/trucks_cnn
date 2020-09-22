@@ -40,17 +40,27 @@ def get_osm(bbox,
                                      selector=selector,
                                      out='body',
                                      includeGeometry=True)
-        elements = Overpass().query(query, timeout=60).elements()
+        try:
+            elements = Overpass().query(query, timeout=120).elements()
+        except Exception:
+            elements = []
+            Warning("Could not download OSM data")
         # create multiline of all elements
         if len(elements) > 0:
             for i in range(len(elements)):
                 elem = elements[i]
-                geoms.append(elem.geometry())
+                try:
+                    geoms.append(elem.geometry())
+                except Exception:
+                    print("Could not append geometry")
         Warning("Could not retrieve " + select)
-    lines = gpd.GeoDataFrame(crs="EPSG:4326", geometry=geoms)
-    n = len(geoms)
-    lines["osm_value"] = [osm_value] * n  # add road type
-    return lines
+    if len(geoms) > 0:
+        lines = gpd.GeoDataFrame(crs="EPSG:4326", geometry=geoms)
+        n = len(geoms)
+        lines["osm_value"] = [osm_value] * n  # add road type
+        return lines
+    else:
+        return []
 
 
 # buffer Float road buffer distance [m]
@@ -73,17 +83,22 @@ def get_roads(bbox, osm_values, buffer_meters, dir_write, filename, crs):
         osm_values_int = {m: 1, t: 2, p: 3, s: 4, ter: 5}
         for osm_value in osm_values:
             roads_osm = get_osm(bbox=bbox, osm_value=osm_value)
-            roads_osm.to_file(file_tmp, driver="GPKG")
-            roads_osm = gpd.read_file(file_tmp)
-            roads_osm = roads_osm.to_crs(crs)
-            roads_osm[buffer_dist] = [buffers[osm_value]] * len(roads_osm)
-            roads_osm["osm_value_int"] = osm_values_int[osm_value]
-            roads.append(roads_osm)
-        roads_merge = gpd.GeoDataFrame(pd.concat(roads, ignore_index=True), crs=roads[0].crs)
-        buffered = roads_merge.buffer(distance=roads_merge[buffer_dist])
-        roads_merge.geometry = buffered
-        roads_merge.to_file(fwrite, driver="GPKG")
-        os.remove(file_tmp)
+            if len(roads_osm) > 0:
+                roads_osm.to_file(file_tmp, driver="GPKG")
+                roads_osm = gpd.read_file(file_tmp)
+                roads_osm = roads_osm.to_crs(crs)
+                roads_osm[buffer_dist] = [buffers[osm_value]] * len(roads_osm)
+                roads_osm["osm_value_int"] = osm_values_int[osm_value]
+                roads.append(roads_osm)
+        try:
+            roads_merge = gpd.GeoDataFrame(pd.concat(roads, ignore_index=True), crs=roads[0].crs)
+            buffered = roads_merge.buffer(distance=roads_merge[buffer_dist])
+            roads_merge.geometry = buffered
+            roads_merge.to_file(fwrite, driver="GPKG")
+            if os.path.exists(file_tmp):
+                os.remove(file_tmp)
+        except ValueError:
+            raise Warning("No objects")
     return fwrite
 
 
